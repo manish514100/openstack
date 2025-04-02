@@ -1,0 +1,85 @@
+pipeline {
+  environment {
+//   ANSIBLE_PRIVATE_KEY=credentials('ssh-private-key')
+   MINIO_ACCESS_KEY=credentials('minio_access_key ')
+   MINIO_SECRET_KEY=credentials('minio_secret_key ')
+   BUCKET=credentials('bucket_id ')
+  }
+  agent {
+    kubernetes {
+      defaultContainer 'jnlp'
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    some-label: some-label-value
+spec:
+  containers:
+  - name: terraform
+    image: hashicorp/terraform
+    command:
+    - cat
+    tty: true
+#  - name: ansible
+#    image: alpine/ansible
+#    command:
+#    - cat
+#    tty: true
+"""
+    }
+  }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                  checkout scm
+            }
+        }
+
+        stage('Terraform init') {
+            steps {
+                container('terraform') {
+                sh 'mkdir -p ~/.config/openstack'
+                withCredentials([file(credentialsId: 'os-clouds', variable: 'CLOUDS')]) {    
+                sh "cp \$CLOUDS ~/.config/openstack/clouds.yaml"
+                }
+//                dir('ubuntu2204-instance') {
+
+
+                sh 'terraform init -backend-config="access_key=$MINIO_ACCESS_KEY" -backend-config="secret_key=$MINIO_SECRET_KEY" -backend-config="bucket=$BUCKET"'
+//                   }
+             
+                }
+                    
+           }
+        
+      }
+        stage('Terraform Action') {
+            steps {
+                container('terraform') {
+//                dir('ubuntu2204-instance') {
+                echo "terraform action from the parameter is --> ${action}"
+                sh ("terraform ${action} --auto-approve");
+                sh ''' 
+                echo $(terraform output -json server_floating_ip) | awk -F'"' '{print $2}' > os_hosts
+                cat os_hosts
+                '''
+//              }
+          }
+        }
+
+      }
+//        stage('Run Ansible Playbook') {
+//            steps {
+//              container('ansible') {
+//               dir('ubuntu2204-instance') {
+//                sh 'sleep 30'
+//                ansiblePlaybook(credentialsId: 'manish', inventory: 'os_hosts', playbook: 'playbook.yml')
+//                }
+//              }
+//            }
+//         } 
+
+    }
+}
