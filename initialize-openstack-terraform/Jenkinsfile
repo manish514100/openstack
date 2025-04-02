@@ -1,0 +1,67 @@
+pipeline {
+  environment {
+   MINIO_ACCESS_KEY=credentials('minio_access_key ')
+   MINIO_SECRET_KEY=credentials('minio_secret_key ')
+   BUCKET=credentials('bucket_id ')
+   PROJECT_USER_PASSWORD=credentials('os_project_user_password ')
+  }
+  agent {
+    kubernetes {
+      defaultContainer 'jnlp'
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    some-label: some-label-value
+spec:
+  containers:
+  - name: terraform
+    image: hashicorp/terraform
+    command:
+    - cat
+    tty: true
+"""
+    }
+  }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                  checkout scm
+            }
+        }
+
+        stage('Terraform init') {
+            steps {
+                container('terraform') {
+                sh 'mkdir -p ~/.config/openstack'
+                withCredentials([file(credentialsId: 'os-clouds', variable: 'CLOUDS')]) {    
+                sh "cp \$CLOUDS ~/.config/openstack/clouds.yaml"
+                }
+//                dir('admin') {
+
+
+                sh 'terraform init -backend-config="access_key=$MINIO_ACCESS_KEY" -backend-config="secret_key=$MINIO_SECRET_KEY" -backend-config="bucket=$BUCKET"'
+//                   }
+  //             
+                }
+                    
+           }
+        
+       }
+        stage('Terraform Action') {
+            steps {
+                container('terraform') {
+//                dir('admin') {
+                echo "terraform action from the parameter is --> ${action}"
+                sh ("terraform ${action} -var project_user_password=$PROJECT_USER_PASSWORD --auto-approve");
+//                }
+                
+            }
+            
+        }
+        
+    }
+  }
+}
