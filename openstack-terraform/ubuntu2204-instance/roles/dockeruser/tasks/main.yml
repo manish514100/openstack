@@ -1,0 +1,5 @@
+- name: adding existing user manish to group docker
+  user:
+    name: manish
+    groups: docker
+    append: yes

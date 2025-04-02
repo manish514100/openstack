@@ -1,0 +1,8 @@
+#cloud-config
+system_info:
+  default_user:
+    name: manish
+#    groups: "wheel"
+    lock_passwd: false
+    passwd: $6$rounds=4096$EOPPs/Z.8P7T7$h.x53qQyLix1rtIlOHzNqaO7j2iZ.4o.OOemalFRmSjNBj8QMzTxDGMz/enZA7MCoHejbs5x.5uvug9mwKrcH0
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
