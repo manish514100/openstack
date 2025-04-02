@@ -1,0 +1,13 @@
+secret:
+  enabled: true
+  create: true
+  filename: cloud.conf
+  name: cinder-csi-cloud-config
+  data:
+    cloud.conf: |-
+      [Global]
+      auth-url=${auth-url}
+      application-credential-id=${application-credential-id}
+      application-credential-secret=${application-credential-secret}
+storageClass:
+  enabled: false

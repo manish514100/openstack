@@ -1,0 +1,76 @@
+pipeline {
+
+  environment {
+   MINIO_ACCESS_KEY=credentials('minio_access_key ')
+   MINIO_SECRET_KEY=credentials('minio_secret_key ')
+   BUCKET=credentials('bucket_id ')
+   TRAEFIK_ADMIN_PASS=credentials('traefik_admin_pass ')
+   LE_EMAIL=credentials('le_email ')
+   CLOUDFLARE_TOKEN=credentials('cloudflare_token ')
+   CLOUD_CONF_APPLICATION_ID=credentials('cloud_conf_application_cred_id ')
+   CLOUD_CONF_APPLICATION_SECRET=credentials('cloud_conf_application_cred_secret ')
+   }
+
+  agent {
+    kubernetes {
+      defaultContainer 'jnlp'
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    some-label: some-label-value
+spec:
+  containers:
+  - name: terraform
+    image: hashicorp/terraform
+    command:
+    - cat
+    tty: true
+"""
+    }
+  }
+  stages {
+      stage('Git clone') {
+          steps {
+              checkout scm
+          }
+      }
+  
+        stage('Terraform init') {
+            steps {
+                container('terraform') {
+                sh 'mkdir -p ~/.kube'
+                withCredentials([file(credentialsId: 'magnum-k8s-config	', variable: 'KUBECONFIG')]) { 
+                sh "cp \$KUBECONFIG ~/.kube/config"
+                }
+                sh 'terraform init -backend-config="access_key=$MINIO_ACCESS_KEY" -backend-config="secret_key=$MINIO_SECRET_KEY" -backend-config="bucket=$BUCKET"'
+                }
+
+                }
+            }
+        
+
+        stage('Terraform Action') {
+            steps {
+                container('terraform') {
+                sh 'mkdir -p ~/.kube'
+                withCredentials([file(credentialsId: 'magnum-k8s-config', variable: 'KUBECONFIG')]) { 
+                sh "cp \$KUBECONFIG ~/.kube/config"
+                }
+                echo "terraform action from the parameter is --> ${action}"
+                sh ("terraform ${action} \
+                -var traefik_admin_pass=$TRAEFIK_ADMIN_PASS \
+                -var le_email=$LE_EMAIL \
+                -var cloudflare_token=$CLOUDFLARE_TOKEN \
+                --var cloud_conf_application_cred_id=$CLOUD_CONF_APPLICATION_ID \
+                --var cloud_conf_application_cred_secret=$CLOUD_CONF_APPLICATION_SECRET \
+                --auto-approve");
+                }
+                }
+            }
+        }
+}
+
+    
+  
